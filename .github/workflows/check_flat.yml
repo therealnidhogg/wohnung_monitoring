@@ -25,8 +25,9 @@ jobs:
 
       - name: Run Monitor Script
         env:
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          MY_EMAIL: ${{ secrets.MY_EMAIL }}
+          OUTLOOK_EMAIL: ${{ secrets.OUTLOOK_EMAIL }}
+          OUTLOOK_PASSWORD: ${{ secrets.OUTLOOK_PASSWORD }}
+          TARGET_EMAIL: ${{ secrets.TARGET_EMAIL }}
         run: python monitor.py
 
       - name: Commit and Push changes
