@@ -25,9 +25,8 @@ jobs:
 
       - name: Run Monitor Script
         env:
-          OUTLOOK_EMAIL: ${{ secrets.OUTLOOK_EMAIL }}
-          OUTLOOK_PASSWORD: ${{ secrets.OUTLOOK_PASSWORD }}
-          TARGET_EMAIL: ${{ secrets.TARGET_EMAIL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python monitor.py
 
       - name: Commit and Push changes
