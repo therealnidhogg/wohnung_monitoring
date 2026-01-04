@@ -1,47 +1,39 @@
 import os
+import smtplib
+from email.message import EmailMessage
 import requests
 from bs4 import BeautifulSoup
-import sib_api_v3_sdk
-from sib_api_v3_sdk.rest import ApiException
 
 # --- CONFIGURATION ---
 URL = "https://bauverein-haidhausen.de/wohnungsangebote"
 STATE_FILE = "known_ads.txt"
 
-# Secrets from GitHub (We only need the API Key and your email)
-BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
-MY_EMAIL = os.environ.get("MY_EMAIL")  # The email you want to receive alerts on
+# Outlook Secrets from GitHub
+OUTLOOK_EMAIL = os.environ.get("OUTLOOK_EMAIL")
+OUTLOOK_PASSWORD = os.environ.get("OUTLOOK_PASSWORD") # App Password recommended
+TARGET_EMAIL = os.environ.get("TARGET_EMAIL") # Where you want to receive the alert
 
-def send_email_via_brevo(subject, body):
-    if not BREVO_API_KEY or not MY_EMAIL:
-        print("❌ Brevo secrets missing. Skipping notification.")
+def send_outlook_email(subject, body):
+    if not OUTLOOK_EMAIL or not OUTLOOK_PASSWORD:
+        print("❌ Outlook secrets missing. Skipping notification.")
         return
 
-    # Configure API key authorization: api-key
-    configuration = sib_api_v3_sdk.Configuration()
-    configuration.api_key['api-key'] = BREVO_API_KEY
-
-    # Create an instance of the API class
-    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
-    
-    # Define the email sender and recipient
-    # Note: Sender must be a verified email in Brevo (usually the one you signed up with)
-    sender = {"name": "Apartment Bot", "email": MY_EMAIL}
-    to = [{"email": MY_EMAIL, "name": "Me"}]
-    
-    # Create the email object
-    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-        to=to,
-        sender=sender,
-        subject=subject,
-        text_content=body
-    )
+    msg = EmailMessage()
+    msg.set_content(body)
+    msg["Subject"] = subject
+    msg["From"] = OUTLOOK_EMAIL
+    msg["To"] = TARGET_EMAIL
 
     try:
-        api_response = api_instance.send_transac_email(send_smtp_email)
-        print(f"✔ Email sent successfully! ID: {api_response.message_id}")
-    except ApiException as e:
-        print(f"❌ Failed to send email via Brevo: {e}")
+        # Outlook / Office365 SMTP Settings
+        server = smtplib.SMTP("smtp.office365.com", 587)
+        server.starttls() # Secure the connection
+        server.login(OUTLOOK_EMAIL, OUTLOOK_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print(f"✔ Email sent to {TARGET_EMAIL}")
+    except Exception as e:
+        print(f"❌ Failed to send email via Outlook: {e}")
 
 def check_website():
     print(f"--- Checking {URL} ---")
@@ -63,7 +55,7 @@ def check_website():
 
     if start_marker in full_text:
         content_after_header = full_text.split(start_marker, 1)[1]
-
+        
         if end_marker in content_after_header:
             clean_content = content_after_header.split(end_marker, 1)[0]
         else:
@@ -82,7 +74,7 @@ def check_website():
         if final_text != old_text:
             print("🔄 Changes detected!")
             email_body = f"The apartment listings have changed!\n\nNew Content:\n{final_text}\n\nCheck here: {URL}"
-            send_email_via_brevo("🏠 New Apartment Update!", email_body)
+            send_outlook_email("🏠 New Apartment Update!", email_body)
             
             with open(STATE_FILE, "w", encoding="utf-8") as f:
                 f.write(final_text)
@@ -92,7 +84,7 @@ def check_website():
     else:
         error_msg = "❌ Could not find the listing section. Website structure might have changed."
         print(error_msg)
-        send_email_via_brevo("⚠ Bot Error: Structure Changed", f"{error_msg}\n\nPlease check the script markers.")
+        send_outlook_email("⚠ Bot Error: Structure Changed", f"{error_msg}\n\nPlease check the script markers.")
 
 if __name__ == "__main__":
     check_website()
