@@ -1,6 +1,4 @@
 import os
-import smtplib
-from email.message import EmailMessage
 import requests
 from bs4 import BeautifulSoup
 
@@ -8,32 +6,29 @@ from bs4 import BeautifulSoup
 URL = "https://bauverein-haidhausen.de/wohnungsangebote"
 STATE_FILE = "known_ads.txt"
 
-# Outlook Secrets from GitHub
-OUTLOOK_EMAIL = os.environ.get("OUTLOOK_EMAIL")
-OUTLOOK_PASSWORD = os.environ.get("OUTLOOK_PASSWORD") # App Password recommended
-TARGET_EMAIL = os.environ.get("TARGET_EMAIL") # Where you want to receive the alert
+# Telegram Secrets from GitHub
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-def send_outlook_email(subject, body):
-    if not OUTLOOK_EMAIL or not OUTLOOK_PASSWORD:
-        print("❌ Outlook secrets missing. Skipping notification.")
+def send_telegram(message):
+    if not BOT_TOKEN or not CHAT_ID:
+        print("❌ Telegram secrets missing.")
         return
 
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg["Subject"] = subject
-    msg["From"] = OUTLOOK_EMAIL
-    msg["To"] = TARGET_EMAIL
-
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        # 'Markdown' allows bolding, but can break if the site has weird characters. 
+        # We'll use safe text only.
+    }
+    
     try:
-        # Outlook / Office365 SMTP Settings
-        server = smtplib.SMTP("smtp.office365.com", 587)
-        server.starttls() # Secure the connection
-        server.login(OUTLOOK_EMAIL, OUTLOOK_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        print(f"✔ Email sent to {TARGET_EMAIL}")
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        print("✔ Telegram message sent!")
     except Exception as e:
-        print(f"❌ Failed to send email via Outlook: {e}")
+        print(f"❌ Failed to send Telegram: {e}")
 
 def check_website():
     print(f"--- Checking {URL} ---")
@@ -73,8 +68,9 @@ def check_website():
             
         if final_text != old_text:
             print("🔄 Changes detected!")
-            email_body = f"The apartment listings have changed!\n\nNew Content:\n{final_text}\n\nCheck here: {URL}"
-            send_outlook_email("🏠 New Apartment Update!", email_body)
+            
+            msg = f"🏠 **New Apartment Update!**\n\n{final_text}\n\nCheck here: {URL}"
+            send_telegram(msg)
             
             with open(STATE_FILE, "w", encoding="utf-8") as f:
                 f.write(final_text)
@@ -84,7 +80,7 @@ def check_website():
     else:
         error_msg = "❌ Could not find the listing section. Website structure might have changed."
         print(error_msg)
-        send_outlook_email("⚠ Bot Error: Structure Changed", f"{error_msg}\n\nPlease check the script markers.")
+        send_telegram(f"⚠ Bot Error: {error_msg}")
 
 if __name__ == "__main__":
     check_website()
