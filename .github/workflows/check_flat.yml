@@ -1,0 +1,37 @@
+name: Check Apartment Ads
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Monitor Script
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          MY_EMAIL: ${{ secrets.MY_EMAIL }}
+        run: python monitor.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "ApartmentBot"
+          git config --global user.email "bot@example.com"
+          git add known_ads.txt
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update known ads" && git push)
